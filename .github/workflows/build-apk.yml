@@ -23,27 +23,49 @@ jobs:
           distribution: 'zulu'
           java-version: 17
 
-      - name: Prepare Web Assets & Initialize Capacitor
+      - name: Prepare Assets & Install Capacitor
         run: |
           mkdir -p dist
-          # Copy whatever html file exists to dist/index.html
-          if [ -f "index.html" ]; then
-            cp index.html dist/index.html
-          elif [ -f "personal_money_tracker.html" ]; then
+          # Find and copy your HTML tracker
+          if [ -f "personal_money_tracker.html" ]; then
             cp personal_money_tracker.html dist/index.html
+          elif [ -f "index.html" ]; then
+            cp index.html dist/index.html
           else
-            echo "No HTML file found!" && exit 1
+            echo "Error: Neither personal_money_tracker.html nor index.html was found in root!"
+            ls -la
+            exit 1
           fi
 
-          # Initialize project properly
-          npm init -y
-          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
-          npx cap init "Money Tracker" "com.tracker.money" --web-dir dist
-          npx cap add android
-          npx cap copy
+          # Create package.json and capacitor configuration directly to avoid prompt hanging
+          cat << 'EOF' > package.json
+          {
+            "name": "money-tracker",
+            "version": "1.0.0",
+            "private": true
+          }
+          EOF
 
-      - name: Build Debug APK
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.tracker.money",
+            "appName": "Money Tracker",
+            "webDir": "dist"
+          }
+          EOF
+
+          # Install locked Capacitor dependencies
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+
+          # Add native android project non-interactively
+          npx cap add android
+          npx cap sync android
+
+      - name: Accept Android Licenses & Build APK
         run: |
+          # Auto-accept all android sdk licenses
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
