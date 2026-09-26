@@ -15,7 +15,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -23,15 +23,21 @@ jobs:
           distribution: 'zulu'
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Capacitor & Wrap App
+      - name: Prepare Web Assets & Initialize Capacitor
         run: |
           mkdir -p dist
-          cp index.html dist/index.html
+          # Copy whatever html file exists to dist/index.html
+          if [ -f "index.html" ]; then
+            cp index.html dist/index.html
+          elif [ -f "personal_money_tracker.html" ]; then
+            cp personal_money_tracker.html dist/index.html
+          else
+            echo "No HTML file found!" && exit 1
+          fi
+
+          # Initialize project properly
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
           npx cap init "Money Tracker" "com.tracker.money" --web-dir dist
           npx cap add android
           npx cap copy
@@ -40,9 +46,9 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: MoneyTracker-APK
